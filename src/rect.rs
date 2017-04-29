@@ -1,7 +1,8 @@
-use std::ops::Sub;
+use std::ops::{Add, Sub};
+use types::{Point};
 
 pub struct Rect<T> 
-    where T: PartialOrd + Sub<Output = T>
+    where T: PartialOrd + Add<Output=T> + Sub<Output = T>
 {
     left: T,
     top: T,
@@ -10,7 +11,7 @@ pub struct Rect<T>
 }
 
 impl<T> Rect<T> 
-    where T: PartialOrd + Sub<Output = T> + Copy
+    where T: PartialOrd + Add<Output=T> + Sub<Output = T> + Copy
 {
     pub fn is_empty(&self) -> bool {
         self.left >= self.right || self.top >= self.bottom
@@ -35,6 +36,14 @@ impl<T> Rect<T>
 
     }
 
+    pub fn x(&self) -> T {
+        self.left
+    }
+    
+    pub fn y(&self) -> T {
+        self.top
+    }
+
     pub fn left(&self) -> T {
         self.left
     }
@@ -57,5 +66,17 @@ impl<T> Rect<T>
 
     pub fn height(&self) -> T {
         self.bottom - self.top
+    }
+}
+
+impl Rect<f32> {
+    // Order: top-left, top-right, bottom-left, bottom-right
+    pub fn points(&self) -> (Point, Point, Point, Point) {
+        (
+            Point::new(self.x(), self.y()),
+            Point::new(self.x() + self.width(),self.y()),
+            Point::new(self.x(), self.y() + self.height()),
+            Point::new(self.x() + self.width(), self.y() + self.height())
+        )
     }
 }

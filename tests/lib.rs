@@ -1,6 +1,9 @@
 extern crate canvas_rs;
+extern crate image;
 
-use canvas_rs::Canvas;
+use canvas_rs::canvas::Canvas;
+use canvas_rs::types::Color;
+use image::RgbaImage;
 
 use canvas::canvas::GCanvas;
 #[cfg(test)]
@@ -18,21 +21,16 @@ fn clear() {
     // Clear using canvas
 }
 
-#[test]
-fn draw_solid_ramp() {
+fn draw_blend_ramp(canvas: &mut Canvas, color: &Color) {
 
-
-}
-
-#[test]
-fn draw_blend_ramp() {
 }
 
 #[test]
 fn draw_blend_white() {
-}
+    // Create bitmap
+    let bitmap = RgbaImage::new(200, 200);
+    // Create canvas
+    let mut canvas = Canvas::new()
 
-#[test]
-fn draw_bm_circles() {
-    // let recs = Vec::new();
+    draw_blend_ramp(canvas)
 }

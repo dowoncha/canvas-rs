@@ -1,20 +1,21 @@
-use std::cell::Cell;
-use nalgebra::{Matrix3, zero};
 use image::{RgbaImage, Rgba, Pixel};
 use types::Color;
 use types::{RectF, RectI, Mat3f};
-use shader::{Shader, PixelShader};
+use shader::{Shader, PixelShader, BitmapShader};
 use util::color_to_pixel;
 
-pub struct Canvas {
+// TODO: Eventually convert RgbaImage into GenericImage trait
+// to allow for all image and pixel types
+
+pub struct Canvas<'a> {
     // bitmap: Cell<RgbaImage>,
-    bitmap: RgbaImage,
+    bitmap: &'a mut RgbaImage,
     ctm: Mat3f,
     matrix_stack: Vec<Mat3f>
 }
 
-impl Canvas {
-    pub fn new(bitmap: RgbaImage) -> Canvas {
+impl<'a> Canvas<'a> {
+    pub fn new(bitmap: &'a mut RgbaImage) -> Canvas<'a> {
         Canvas {
             bitmap: bitmap, // Cell::new(bitmap)
             ctm: Mat3f::identity(),      // Current transformation matrix, usually the top of the stack
@@ -32,20 +33,32 @@ impl Canvas {
         }
     }
 
-    pub fn fill_rect(&mut self, rect: &RectF, color: &Color) {
+    pub fn fill_rect(&mut self, dst: &RectF, color: &Color) {
         // Assert rect is not empty
         let pixel = color_to_pixel(color);
 
         // 1. Create a color shader
-        let pixel_shader = Box::new(PixelShader::new(&pixel));
+        let pixel_shader = PixelShader::new(&pixel);
         
-        self.shade_rect(rect, &*pixel_shader);
+        self.shade_rect(dst, &pixel_shader);
     }   
+
+    pub fn fill_bitmap_rect(&mut self, src: &RgbaImage, dst: &RectF ) {
+        // 1. Create matrix of conversion from src to dest rect
+        let transform = Mat3f::identity();
+
+        // 2. Use conversion matrix to create bitmap shader
+        let shader = BitmapShader::new(src, transform);
+
+        self.shade_rect(dst, &shader);
+    }
 
     pub fn shade_rect(&mut self, rect: &RectF, shader: &Shader) {
         // 1. Convert rectangle into points
+        let (tl, tr, bl, br) = rect.points();
 
         // 2. Apply ctm to points
+        // let tl = self.ctm * 
 
         // 3. If transformed points are not a rect, draw a polygon
 
@@ -56,7 +69,26 @@ impl Canvas {
         // self.shade_device_rect(transformed_rect, shader);
     }
 
-    pub fn shade_device_rect(&mut self, rect: &RectI, shader: &Shader) {
+    /// ------ Current Transformation Matrix Functions
+
+    /// Current Transformation Matrix functions
+    pub fn save(&mut self) {
+        self.matrix_stack.push(self.ctm);
+    }
+
+    /// Restores the saved matrix into the stack
+    pub fn restore(&mut self) {
+        if let Some(ctm) = self.matrix_stack.pop() {
+            self.ctm = ctm;
+        }
+    }
+
+    /// Concats the input matrix onto the ctm
+    pub fn concat(&mut self, input: Mat3f) {
+        self.ctm *= input;
+    }
+
+    fn shade_device_rect(&mut self, rect: &RectI, shader: &Shader) {
         // 1. Set shader context
         
         // 2. Create row
