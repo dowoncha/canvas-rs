@@ -1,8 +1,10 @@
-mod pixel;
+// #[libi]
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-    }
-}
+extern crate image;
+extern crate nalgebra;
+
+pub mod canvas;
+pub mod types;
+pub mod rect;
+pub mod shader;
+pub mod util;
