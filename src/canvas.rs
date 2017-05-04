@@ -1,5 +1,5 @@
 use image::{RgbaImage, Rgba, Pixel, SubImage, GenericImage};
-use types::{GPixel, PointF, PointU, RectF, RectI, Mat3f, Color};
+use types::{GPixel, Vec2f, PointF, PointU, RectF, RectI, Mat3f, Color};
 use shader::{Shader, PixelShader, BitmapShader};
 use util::{color_to_pixel, mul_div_255_round, clamp};
 use edge::Edge;
@@ -48,6 +48,27 @@ impl<'a> Canvas<'a> {
     // ----- Context manipulation
     pub fn set_fill_style(&mut self, style: FillStyle<'a>) {
         self.fill_style = style;
+    }
+
+    pub fn translate(&self, x: i32, y: i32) {
+        self.ctm.append_translation(&Vec2f::new(x as f32, y as f32));
+    }
+
+    pub fn rotate(&self, angle: f32) {
+
+    }
+
+    pub fn scale(&self, x: f32, y: f32) {
+        self.ctm.append_nonuniform_scaling(&Vec2f::new(x, y));
+    }
+
+    pub fn set_transform(&mut self, a: f32, b: f32, c: f32, d: f32, e: f32, f: f32) {
+        let ctm = Mat3f::new(a, b, c, d, e, f, 0.0, 0.0, 1.0);
+        self.ctm = ctm;
+    }
+
+    pub fn reset_transform(&mut self) {
+        self.ctm = Mat3f::identity();
     }
 
     // ----- Public Drawing API
@@ -111,7 +132,10 @@ impl<'a> Canvas<'a> {
 
     /// ------ Current Transformation Matrix Functions
 
-    /// Current Transformation Matrix functions
+    /// Save the state of current transformation matrix
+    /// Includes:
+    ///     Transforms applied so far
+    ///     Attributes
     pub fn save(&mut self) {
         self.matrix_stack.push(self.ctm);
     }
@@ -121,11 +145,6 @@ impl<'a> Canvas<'a> {
         if let Some(ctm) = self.matrix_stack.pop() {
             self.ctm = ctm;
         }
-    }
-
-    /// Concats the input matrix onto the ctm
-    pub fn concat(&mut self, input: Mat3f) {
-        self.ctm *= input;
     }
 
     // ------ Private Device coordinate drawing functions

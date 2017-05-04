@@ -1,4 +1,4 @@
-use nalgebra::{Matrix3, Point2};
+use nalgebra::{Vector2, Matrix3, Point2};
 use rect::Rect;
 use image::{Rgba};
 
@@ -9,3 +9,4 @@ pub type RectF = Rect<f32>;
 pub type RectI = Rect<i32>;
 pub type PointF = Point2<f32>;
 pub type PointU = Point2<u32>;
+pub type Vec2f = Vector2<f32>;
