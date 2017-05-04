@@ -71,7 +71,7 @@ impl<'a> Canvas<'a> {
         self.ctm = Mat3f::identity();
     }
 
-    // ----- Public Drawing API
+    // ----- Public rect drawing functions
 
     /// Clear the specified rectangular area, making it fully transparent
     pub fn clear_rect(&self, x: u32, y: u32, width: u32, height: u32) {
@@ -109,25 +109,9 @@ impl<'a> Canvas<'a> {
         self.shade_rect(&dst, &mut *shader);
     }   
 
-    fn shade_rect(&self, rect: &Rect<u32>, shader: &mut Shader) {
-        // 1. Convert rectangle into points
-        // Iterate over the points and transform them by ctm AKA Device mode
-        let (tl, br) = rect.points();
-
-        // let transform = |point: Point<u32>| {
-        //     let x = self.ctm[0] * point.x + self.ctm[1] * point.y + self.ctm[2];
-        //     let y = self.ctm[3] * point.x + self.ctm[4] * point.y + self.ctm[5];
-        //     Point::new(x, y)
-        // };
-
-        // 3. If transformed points are not a rect, draw a polygon
-        // Convert to edges
-      
-        // 4. Convert back to a rectangle
-
-        // 5. Check rectangle is not empty and clip edges from bitmap
-
-        self.shade_device_rect(rect, shader);
+    // ------ Public image drawing functions
+    pub fn draw_image(&self, image: &RgbaImage, x: u32, y: u32) {
+        
     }
 
     /// ------ Current Transformation Matrix Functions
@@ -148,6 +132,28 @@ impl<'a> Canvas<'a> {
     }
 
     // ------ Private Device coordinate drawing functions
+
+    // Convert rectangle into device coordinates
+    fn shade_rect(&self, rect: &Rect<u32>, shader: &mut Shader) {
+        // 1. Convert rectangle into points
+        // Iterate over the points and transform them by ctm AKA Device mode
+        let (tl, br) = rect.points();
+
+        // let transform = |point: Point<u32>| {
+        //     let x = self.ctm[0] * point.x + self.ctm[1] * point.y + self.ctm[2];
+        //     let y = self.ctm[3] * point.x + self.ctm[4] * point.y + self.ctm[5];
+        //     Point::new(x, y)
+        // };
+
+        // 3. If transformed points are not a rect, draw a polygon
+        // Convert to edges
+      
+        // 4. Convert back to a rectangle
+
+        // 5. Check rectangle is not empty and clip edges from bitmap
+
+        self.shade_device_rect(rect, shader);
+    }
 
     fn shade_device_rect(&self, rect: &Rect<u32>, shader: &mut Shader) {
         // println!("Shading rect in device mode: {:?}", rect);

@@ -38,7 +38,7 @@ fn offset(rect: &mut RectF, dx: f32, dy: f32) {
 
 fn draw_blend_ramp(canvas: &mut Canvas, bg: &Color) {
     canvas.fill_style = color_to_pixel(bg);
-    canvas.clear();
+    canvas.clear_rect(0, 0, 0, 0);
 
     let mut rect = RectF::xywh(-25.0, -25.0, 70.0, 70.0);
 
