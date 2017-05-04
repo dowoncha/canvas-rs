@@ -1,6 +1,6 @@
 ## Synopsis
 
-At the top of the file there should be a short introduction and/ or overview that explains **what** the project is. This description should match descriptions added for package managers (Gemspec, package.json, etc.)
+A 2D Drawable canvas.
 
 ## Code Example
 
@@ -11,8 +11,7 @@ Show what the library does as concisely as possible, developers should be able t
 A short description of the motivation behind the creation and maintenance of the project. This should explain **why** the project exists.
 
 ## Installation
-
-Provide code examples and explanations of how to get the project.
+Comes with a Dockerfile for simple setup
 
 ## API Reference
 

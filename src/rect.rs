@@ -1,18 +1,40 @@
 use std::ops::{Add, Sub};
-use types::{Point};
+use types::{PointF};
+use nalgebra::Point2;
+use std::fmt::Debug;
 
+pub type RectPoints = (PointF, PointF);
+
+#[derive(Debug)]
 pub struct Rect<T> 
-    where T: PartialOrd + Add<Output=T> + Sub<Output = T>
 {
-    left: T,
-    top: T,
-    right: T,
-    bottom: T
+    pub left: T,
+    pub top: T,
+    pub right: T,
+    pub bottom: T
 }
 
-impl<T> Rect<T> 
-    where T: PartialOrd + Add<Output=T> + Sub<Output = T> + Copy
+impl From<RectPoints> for Rect<f32> {
+    fn from(points: RectPoints) -> Rect<f32> {
+        let tl = points.0;
+        let br = points.1;
+
+        Rect::xywh(tl.x, tl.y, br.x, br.y)
+    }
+}
+
+impl<T: 'static> Rect<T> 
+    where T: PartialOrd + Add<Output=T> + Sub<Output = T> + Copy + Debug
 {
+    pub fn xywh(x: T, y: T, w: T, h: T) -> Rect<T> {
+        Rect {
+            left: x,
+            top: y,
+            right: x + w,
+            bottom: y + h
+        }
+    }
+
     pub fn is_empty(&self) -> bool {
         self.left >= self.right || self.top >= self.bottom
     }
@@ -24,15 +46,15 @@ impl<T> Rect<T>
         self.bottom = bottom;
     }
 
-    pub fn set_xywh() {
+    pub fn set_xywh(&mut self) {
 
     }
 
-    pub fn set_wh() {
+    pub fn set_wh(&mut self) {
 
     }
 
-    pub fn offset() {
+    pub fn offset(&mut self) {
 
     }
 
@@ -67,16 +89,16 @@ impl<T> Rect<T>
     pub fn height(&self) -> T {
         self.bottom - self.top
     }
-}
 
-impl Rect<f32> {
-    // Order: top-left, top-right, bottom-left, bottom-right
-    pub fn points(&self) -> (Point, Point, Point, Point) {
+    pub fn points(&self) -> (Point2<T>, Point2<T>) {
         (
-            Point::new(self.x(), self.y()),
-            Point::new(self.x() + self.width(),self.y()),
-            Point::new(self.x(), self.y() + self.height()),
-            Point::new(self.x() + self.width(), self.y() + self.height())
+            Point2::new(self.x(), self.y()),
+            Point2::new(self.x() + self.width(), self.y() + self.height())
         )
+    }
+
+    pub fn contains(&self, point: &Point2<T>) -> bool {
+        self.left <= point.x && point.x <= self.right &&
+            self.top <= point.y && point.y <= self.bottom
     }
 }

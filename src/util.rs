@@ -1,5 +1,6 @@
 use image::{Pixel, Rgba};
 use types::{Color};
+use std::cmp;
 
 // TODO: Implement as a FROM trait
 #[inline]
@@ -22,10 +23,15 @@ pub fn pin_to_unit(x: f32) -> f32 {
 }
 
 #[inline]
-pub fn mul_div_255_round(a: u8, b: u8) -> u32 {
+pub fn mul_div_255_round(a: u8, b: u8) -> u8 {
     let mut product: u32 = (a * b) as u32 * 65793;
     product += 1 << 23;
-    product >> 24
+    ( product >> 24 ) as u8
+}
+
+#[inline]
+pub fn clamp<T: Ord>(min: T, value: T, max: T) -> T {
+    cmp::max(min, cmp::min(value, max))
 }
 
 #[cfg(test)]

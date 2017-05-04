@@ -1,12 +1,18 @@
 use nalgebra::inverse;
-use image::{Rgba, RgbaImage};
-use types::Mat3f;
+use image::{Rgba, RgbaImage, Pixel};
+use types::{PointU, Mat3f, GPixel};
 
 pub trait Shader {
-    // fn set_context(ctm: Mat) -> bool;
+    fn set_context(&mut self, ctx: Mat3f) -> bool {
+        true
+    }
 
     // TODO: Row needs enumeration of x, y
-    fn shade_row(&self, row: &mut [Rgba<u8>]);
+    fn shade_row(&self, start: &PointU, row: &mut [Rgba<u8>]);
+
+    fn sample(&self, point: &PointU) -> GPixel {
+        GPixel::from_channels(0, 0, 0, 0)
+    }
 }
 
 pub struct PixelShader {
@@ -22,10 +28,14 @@ impl PixelShader {
 }
 
 impl Shader for PixelShader {
-    fn shade_row(&self, row: &mut [Rgba<u8>]) {
+    fn shade_row(&self, start: &PointU, row: &mut [Rgba<u8>]) {
         for pixel in row {
             *pixel = self.src;
         }
+    }
+
+    fn sample(&self, point: &PointU) -> GPixel {
+        self.src
     }
 }
 
@@ -49,9 +59,13 @@ impl<'a> BitmapShader<'a> {
 }
 
 impl<'a> Shader for BitmapShader<'a> {
-    fn shade_row(&self, row: &mut [Rgba<u8>]) {
-        for pixel in row {
+    fn set_context(&mut self, ctx: Mat3f) -> bool {
+        self.local = ctx;
+        // self.inverse =
 
-        }
+        true
+    }
+
+    fn shade_row(&self, start: &PointU, row: &mut [Rgba<u8>]) {
     }
 }

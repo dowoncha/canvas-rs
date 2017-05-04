@@ -1,72 +1,112 @@
-use image::{RgbaImage, Rgba, Pixel};
-use types::Color;
-use types::{RectF, RectI, Mat3f};
+use image::{RgbaImage, Rgba, Pixel, SubImage, GenericImage};
+use types::{GPixel, PointF, PointU, RectF, RectI, Mat3f, Color};
 use shader::{Shader, PixelShader, BitmapShader};
-use util::color_to_pixel;
+use util::{color_to_pixel, mul_div_255_round, clamp};
+use edge::Edge;
+use rect::Rect;
+
+use std::rc::Rc;
+use std::cell::{Cell, RefCell};
+use std::borrow::BorrowMut;
+use std::ops::DerefMut;
 
 // TODO: Eventually convert RgbaImage into GenericImage trait
 // to allow for all image and pixel types
 
+type Edges = Vec<Edge>;
+
+pub enum FillStyle<'a> {
+    Rgba(Rgba<u8>),
+    Bitmap(&'a RgbaImage)
+}
+
+pub enum StrokeStyle {
+    Solid
+}
+
 pub struct Canvas<'a> {
     // bitmap: Cell<RgbaImage>,
-    bitmap: &'a mut RgbaImage,
+    bitmap: RefCell<&'a mut RgbaImage>,
     ctm: Mat3f,
-    matrix_stack: Vec<Mat3f>
+    matrix_stack: Vec<Mat3f>,
+    fill_style: FillStyle<'a>
+    // pub stroke_style: StrokeStyle
 }
 
 impl<'a> Canvas<'a> {
     pub fn new(bitmap: &'a mut RgbaImage) -> Canvas<'a> {
         Canvas {
-            bitmap: bitmap, // Cell::new(bitmap)
+            // bitmap: Rc::new(RefCell::new(bitmap)),
+            bitmap: RefCell::new(bitmap),
             ctm: Mat3f::identity(),      // Current transformation matrix, usually the top of the stack
-            matrix_stack: Vec::new()
+            matrix_stack: Vec::new(),
+            fill_style: FillStyle::Rgba(GPixel::from_channels(0, 0, 0, 0)),
+            // stroke_style: StrokeStyle::Solid
         }
     }
 
-    pub fn clear(&mut self, color: &Color) {
-        // Convert given color into a pixel
-        let clear_color = color_to_pixel(color);
-
-        // Iterate through bitmap and set to given color
-        for (x, y, pixel) in self.bitmap.enumerate_pixels_mut() {
-            *pixel = clear_color;
-        }
+    // ----- Context manipulation
+    pub fn set_fill_style(&mut self, style: FillStyle<'a>) {
+        self.fill_style = style;
     }
 
-    pub fn fill_rect(&mut self, dst: &RectF, color: &Color) {
-        // Assert rect is not empty
-        let pixel = color_to_pixel(color);
+    // ----- Public Drawing API
 
-        // 1. Create a color shader
-        let pixel_shader = PixelShader::new(&pixel);
+    /// Clear the specified rectangular area, making it fully transparent
+    pub fn clear_rect(&self, x: u32, y: u32, width: u32, height: u32) {
+        let clear = GPixel::from_channels(0, 0, 0, 0);
         
-        self.shade_rect(dst, &pixel_shader);
+        let mut borrow = self.bitmap.borrow_mut();
+
+        let mut sub_image = borrow.sub_image(x, y, width, height);
+
+        for (x, y, pixel) in sub_image.pixels_mut() {
+            *pixel = clear;
+        }
+    }
+
+    pub fn fill_rect(&self, x: u32, y: u32, width: u32, height: u32) {
+        assert!( width > 0, height > 0);
+        
+        let dst = Rect::xywh(x, y, width, height);
+
+        let mut shader: Box<Shader> = match self.fill_style {
+            FillStyle::Rgba(color) => {
+                // 1. Create a color shader
+                Box::new(PixelShader::new(&color))
+            },
+            FillStyle::Bitmap(image) => {
+                // 2. Use conversion matrix to create bitmap shader
+                Box::new(BitmapShader::new(image, Mat3f::identity()))
+            },
+            _ => {
+                // If Fill style fails, shade black
+                Box::new(PixelShader::new(&GPixel::from_channels(0, 0, 0, 255)))
+            }
+        };
+
+        self.shade_rect(&dst, &mut *shader);
     }   
 
-    pub fn fill_bitmap_rect(&mut self, src: &RgbaImage, dst: &RectF ) {
-        // 1. Create matrix of conversion from src to dest rect
-        let transform = Mat3f::identity();
-
-        // 2. Use conversion matrix to create bitmap shader
-        let shader = BitmapShader::new(src, transform);
-
-        self.shade_rect(dst, &shader);
-    }
-
-    pub fn shade_rect(&mut self, rect: &RectF, shader: &Shader) {
+    fn shade_rect(&self, rect: &Rect<u32>, shader: &mut Shader) {
         // 1. Convert rectangle into points
-        let (tl, tr, bl, br) = rect.points();
+        // Iterate over the points and transform them by ctm AKA Device mode
+        let (tl, br) = rect.points();
 
-        // 2. Apply ctm to points
-        // let tl = self.ctm * 
+        // let transform = |point: Point<u32>| {
+        //     let x = self.ctm[0] * point.x + self.ctm[1] * point.y + self.ctm[2];
+        //     let y = self.ctm[3] * point.x + self.ctm[4] * point.y + self.ctm[5];
+        //     Point::new(x, y)
+        // };
 
         // 3. If transformed points are not a rect, draw a polygon
-
+        // Convert to edges
+      
         // 4. Convert back to a rectangle
 
         // 5. Check rectangle is not empty and clip edges from bitmap
 
-        // self.shade_device_rect(transformed_rect, shader);
+        self.shade_device_rect(rect, shader);
     }
 
     /// ------ Current Transformation Matrix Functions
@@ -88,23 +128,69 @@ impl<'a> Canvas<'a> {
         self.ctm *= input;
     }
 
-    fn shade_device_rect(&mut self, rect: &RectI, shader: &Shader) {
+    // ------ Private Device coordinate drawing functions
+
+    fn shade_device_rect(&self, rect: &Rect<u32>, shader: &mut Shader) {
+        // println!("Shading rect in device mode: {:?}", rect);
         // 1. Set shader context
-        
+        shader.set_context(self.ctm);
+
         // 2. Create row
-        // let sub_image = SubImage::new(self.bitmap, rect.left(), rect.top(), rect.width(), self.height());
+        let mut borrow = self.bitmap.borrow_mut();
+        
+        let mut sub_image = borrow.sub_image(
+            rect.x(), 
+            rect.y(), 
+            rect.width(), 
+            rect.height()
+        );
 
-            // shader.shade_row()
+        for (x, y, pixel) in sub_image.pixels_mut() {
+            let src = shader.sample(&PointU::new(x, y));
+            *pixel = blend(src, *pixel);
+        }
+    }
 
-            // Blend rows
+    fn shade_device_polygon(&self, edges: &Edges, shader: &Shader) {
+        unimplemented!()
     }
 }
 
-fn blend(src: Rgba<u8>, dst: Rgba<u8>) -> Rgba<u8> {
+fn blend_row(src: &[GPixel], dst: &[GPixel]) -> Vec<GPixel> {
+    assert!(src.len() == dst.len());
+
+    src.iter().zip(dst.iter())
+        .map(|(src_p, dst_p)| blend(*src_p, *dst_p))
+        .collect()
+}
+
+/// Blend 2 Pixels according to alpha values
+fn blend(src: GPixel, dst: GPixel) -> GPixel {
+    let src_a = src.data[3];
+
     // If the alpha is 255 return src
-    if src.data[3] == 0xFF {
+    if src_a == 0xFF {
         return src;
     }
 
-    Rgba::from_channels(0, 0, 0, 0)
+    if src_a == 0 {
+        return dst;
+    }
+
+    // Calculat alpha blend amount
+    let src_blend: u8 = 0xFF - src_a;
+
+    let alpha = src_a + mul_div_255_round(src_blend, dst.data[3]);
+
+    // Calculate rgb as blend of the alpha
+    let mut red = src.data[0] + mul_div_255_round(src_blend, dst.data[0]);
+    red = clamp(0u8, red, alpha);
+
+    let mut green = src.data[1] + mul_div_255_round(src_blend, dst.data[1]);
+    green = clamp(0u8, green, alpha);
+
+    let mut blue = src.data[2] + mul_div_255_round(src_blend, dst.data[2]);
+    blue = clamp(0u8, blue, alpha);
+
+    Rgba::from_channels(red, green, blue, alpha)
 }
